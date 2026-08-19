@@ -33,7 +33,7 @@ HIGH, MED, LOW = "HIGH", "MED", "LOW"
 MARKETS = {
     "IL": "Israel",
     "US-CA": "California",
-    "US": "United States (other states)",
+    "US": "US (other states)",
     "EU": "EU / EEA / UK",
 }
 
@@ -69,8 +69,8 @@ EXPOSURE = {
         "video-pixel":   ("VPPA",          "$2,500 per violation", (10000, 50000)),
     },
     "EU": {
-        "tracker-no-consent": ("GDPR / ePrivacy", "regulator order; fines up to 4% turnover", (0, 20000)),
-        "replay-no-consent":  ("GDPR / ePrivacy", "regulator order; fines up to 4% turnover", (0, 20000)),
+        "tracker-no-consent": ("GDPR / ePrivacy", "regulator order; up to 4% turnover", (0, 20000)),
+        "replay-no-consent":  ("GDPR / ePrivacy", "regulator order; up to 4% turnover", (0, 20000)),
         "cookie-no-consent":  ("GDPR / ePrivacy", "regulator order",  (0, 20000)),
         "chat-no-consent":    ("GDPR / ePrivacy", "regulator order",  (0, 10000)),
         "missing-doc":        ("GDPR (transparency)", "regulator order", (0, 10000)),
@@ -98,6 +98,38 @@ FAMILY = {
 }
 
 
+EU_EEA_UK = {"AT","BE","BG","HR","CY","CZ","DK","EE","FI","FR","DE","GR","HU","IE",
+             "IT","LV","LT","LU","MT","NL","PL","PT","RO","SK","SI","ES","SE",
+             "IS","LI","NO","GB"}
+
+
+def detect_markets(raw):
+    """Derive markets from the site itself.
+
+    Shopify renders a country selector listing every market it ships to. That is
+    a far better source than asking the user, who often does not know what their
+    own storefront offers. Returns (market_keys, evidence).
+    """
+    countries = list(dict.fromkeys(
+        re.findall(r'name="country_code"[^>]*value="([A-Z]{2})"', raw)
+        + re.findall(r'"countryCode"\s*:\s*"([A-Z]{2})"', raw)))
+    if not countries:
+        return [], {"shipping_countries": [], "source": None}
+
+    markets, ev = [], {"shipping_countries": countries, "source": "storefront country selector"}
+    if "IL" in countries:
+        markets.append("IL")
+    if "US" in countries:
+        markets += ["US-CA", "US"]          # a US market includes California
+    eu = sorted(set(countries) & EU_EEA_UK)
+    if eu:
+        markets.append("EU")
+        ev["eu_countries"] = eu
+    ev["outside_covered_regimes"] = sorted(
+        set(countries) - EU_EEA_UK - {"US", "IL"})
+    return markets, ev
+
+
 def detect_profile(raw, hdr, url):
     """Best-effort guess at what this business is. Always confirmed by the user.
     Takes the RAW html — trackers live in <script> tags."""
@@ -123,8 +155,11 @@ def detect_profile(raw, hdr, url):
         lang = g(r'<html[^>]*\blang="([^"]+)"')
         locales = [lang] if lang else []
 
+    markets, market_ev = detect_markets(raw)
     return {
         "platform": platform,
+        "detected_markets": markets,
+        "market_evidence": market_ev,
         "store_handle": g(r'Shopify\.shop\s*=\s*"([^"]+)"'),
         "base_country": g(r'Shopify\.country\s*=\s*"([A-Z]{2})"') or g(r'"countryCode"\s*:\s*"([A-Z]{2})"'),
         "currencies": currencies,
@@ -232,6 +267,7 @@ def strip_noise(html):
 
 
 def scan(url, offline=None, markets=None):
+    _user_markets = list(markets or [])
     started = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
     findings, skipped, checks_run = [], [], 0
 
@@ -412,9 +448,13 @@ def scan(url, offline=None, markets=None):
     skipped.append("Contrast ratios, keyboard navigation, focus order, and whether "
                    "alt text is meaningful all require a human or a rendered scan.")
 
+    prof = detect_profile(raw, hdr, final)
+    if not markets:
+        markets = prof.get("detected_markets", [])
     return {
         "url": final, "scanned_at": started, "status": status,
-        "markets": markets or [], "profile": detect_profile(raw, hdr, final),
+        "markets_auto": not bool(_user_markets),
+        "markets": markets or [], "profile": prof,
         "trackers": present, "consent_detected": has_consent,
         "checks_run": checks_run, "findings": findings, "not_evaluated": skipped,
         "counts": {s: sum(1 for f in findings if f["sev"] == s) for s in (HIGH, MED, LOW)},
@@ -446,15 +486,15 @@ def exposure_table(findings, markets):
                 "  Nothing found that maps to a regime in: " + ", ".join(markets), ""]
 
     out = ["", "WHERE YOU COULD BE CHALLENGED", "",
-           "  Markets confirmed: " + ", ".join(MARKETS.get(m, m) for m in markets), ""]
+           "  Markets: " + ", ".join(MARKETS.get(m, m) for m in markets), ""]
     order = {HIGH: 0, MED: 1, LOW: 2}
     fam = {}
     for code, (f, hits) in sorted(rows_by_code.items(),
                                   key=lambda kv: (order[kv[1][0]["sev"]], kv[0])):
         out.append(f"  {f['msg'][:72]}")
         for m, (regime, ref, (lo, hi)) in hits:
-            out.append(f"      {MARKETS.get(m, m):<28}{regime:<30}{ref:<38}"
-                       + (f"${lo:,}-${hi:,}" if hi else "—"))
+            out.append(f"      {MARKETS.get(m, m)[:26]:<28}{regime[:28]:<30}"
+                       f"{ref[:36]:<38}" + (f"${lo:,}-${hi:,}" if hi else "—"))
             k = FAMILY.get(regime, regime)
             prev = fam.get(k, (0, 0))
             fam[k] = (max(prev[0], lo), max(prev[1], hi))

@@ -57,30 +57,43 @@ This is a two-pass flow. Never show exposure figures before the user has
 confirmed which countries they sell to — the regimes that apply are entirely
 different for an Israeli store versus a Californian one.
 
-### Pass 1 — scan and identify
+### Pass 1 — scan, then work out where they sell
 
 1. If no URL was given, ask for one: *"What site should I check?"*
-2. Run the scan without `--markets`:
+2. Run the scan:
    ```bash
    python3 scripts/scan.py https://SITE --state .last-scan.json
    ```
-3. Show the detected profile back to the user in plain language and **ask them
-   to confirm or correct it**. Get it from `--profile` (JSON) or the report:
+3. **Work out the markets from the site itself before asking the user anything.**
+   `scan.py` already tries: Shopify and most storefronts render a country
+   selector listing every market they ship to, and that is a better source than
+   the user, who often does not know what their own storefront offers. Check
+   `profile.detected_markets` and `profile.market_evidence`.
 
-   > Here's what I can tell about the site — correct me where I'm wrong:
-   >
-   > - **Platform:** Shopify (`avoriodesign.myshopify.com`)
-   > - **Based in:** Israel · prices in ILS
-   > - **Languages:** English, Hebrew
-   > - **Sells online:** yes
-   > - **Running:** Meta Pixel, Hotjar, Inspectlet
-   >
-   > **Which countries do you sell to and ship to?** This decides which laws
-   > apply — the exposure is completely different for Israel, California, the
-   > rest of the US, and the EU/UK. Pick all that apply: `IL`, `US-CA`, `US`, `EU`.
+4. **If markets were detected**, state them with the evidence and let the user
+   correct rather than supply:
 
-4. Wait for the answer. Do not guess and do not proceed on the base country
-   alone — a store based in Israel that ships to the US carries US exposure.
+   > The storefront's country selector ships to 28 countries, including the US,
+   > the UK and 15 EU/EEA countries, plus Israel. So I'm checking against
+   > Israeli, California, US federal and EU/UK rules. Tell me if that's wrong.
+
+   Then continue to Pass 2 without waiting. Do not block on confirmation when
+   the evidence is strong — only when it is absent or contradictory.
+
+5. **If no markets could be detected** — no country selector, a single-market
+   store, a non-ecommerce site, or a client-rendered page the scan could not
+   read — then ask, and say why you are asking:
+
+   > I couldn't tell from the page which countries you sell to, and that decides
+   > which laws apply. Which of these apply? `IL` (Israel), `US-CA` (California),
+   > `US` (rest of the United States), `EU` (EU/EEA/UK).
+
+   Do not guess, and never infer markets from the base country alone — where a
+   store is hosted says nothing about where it ships.
+
+6. Show the rest of the detected profile so the user can correct it: platform,
+   base country, currencies, languages, and what is running on the page
+   (ad pixels, session replay, chat, subscription apps).
 
 ### Pass 2 — report against the confirmed markets
 
@@ -117,7 +130,8 @@ Offer to write it to a Markdown file so it can be exported to PDF.
 - ❌ "Your fine will be $47,500." → ✅ "Findings in this group typically resolve at $10,000–$50,000 pre-suit."
 - ❌ Summing a dollar figure per finding — inflates by 3-5x and is indefensible.
 - ❌ Scanning a site the user does not own or operate without saying so.
-- ❌ Showing exposure figures before the user confirms their markets.
+- ❌ Asking the user for markets without first trying to detect them from the page.
+- ❌ Showing exposure figures when markets are neither detected nor confirmed.
 - ❌ Assuming markets from the detected base country — where a store is hosted
      says nothing about where it ships.
 - ❌ Citing California law at a store that does not sell to California.
