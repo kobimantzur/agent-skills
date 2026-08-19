@@ -2,3 +2,7 @@
 __pycache__/
 *.pyc
 .last-scan.json
+# never publish scan state or scanned-site HTML (may contain private business data)
+*-state.json
+*-risk.json
+skills/site-risk-check/tests/fixtures/avorio*
