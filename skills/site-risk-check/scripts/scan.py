@@ -461,6 +461,166 @@ def scan(url, offline=None, markets=None):
     }
 
 
+# Plain-English rewrite of every finding, for a non-technical reader.
+# (headline, why it matters, what to do, minutes)
+PLAIN = {
+    "tracker-no-consent": (
+        "Visitors are tracked before they agree to it",
+        "Your advertising trackers start collecting data the moment someone opens the "
+        "page. In most of the countries you sell to, people are supposed to be asked first.",
+        "Turn on Shopify's cookie banner: Settings -> Customer privacy -> Cookie banner.", 30),
+    "replay-no-consent": (
+        "Visitor sessions are being recorded without asking",
+        "Screen-recording tools capture what visitors type and click, starting immediately. "
+        "This is the single most complained-about thing on this list.",
+        "Same cookie banner, plus these tools are installed directly in your theme, so they "
+        "need switching off until consent is given. A developer needs ~1 hour.", 60),
+    "cookie-no-consent": (
+        "Cookies are set before anyone agrees",
+        "Files are stored on visitors' devices before they've been asked.",
+        "Turn on the cookie banner.", 30),
+    "chat-no-consent": (
+        "The chat widget loads before anyone agrees",
+        "Chat conversations pass through another company before visitors are told.",
+        "Mention it in the privacy policy and load chat after consent.", 20),
+    "img-alt": (
+        "Some images have no description for blind visitors ({detail})",
+        "Screen readers can't describe them. This is the most common basis for "
+        "accessibility complaints, and a claimant doesn't have to prove any harm.",
+        "Add a short description to each image in the Shopify admin.", 10),
+    "input-label": (
+        "Some form fields aren't labelled for screen readers",
+        "People using screen readers can't tell what to type where.",
+        "A developer adds labels. Quick fix.", 20),
+    "empty-control": (
+        "Some buttons or links have no readable name",
+        "A screen reader announces them as 'button', with no clue what they do.",
+        "A developer adds a name to each. Quick fix.", 20),
+    "html-lang": (
+        "The page doesn't declare what language it's in",
+        "Screen readers may read the page in the wrong accent or language.",
+        "One-line theme change.", 5),
+    "ca-no-optout-link": (
+        "No 'Do Not Sell or Share My Info' link",
+        "California requires this link on the homepage for shops that run ad trackers.",
+        "Add a footer link. Your consent banner provider usually supplies it.", 20),
+    "ca-no-gpc": (
+        "The site ignores browsers' built-in privacy signal",
+        "Some browsers send an automatic 'don't track me' signal. California treats "
+        "ignoring it as ignoring an opt-out.",
+        "Switch it on in your consent banner settings.", 10),
+    "ca-no-notice-at-collection": (
+        "No plain notice about what data you collect",
+        "Shoppers are supposed to be told what you collect and why, at the point you collect it.",
+        "Add a short paragraph to the privacy policy and link it near forms.", 20),
+    "missing-doc": (
+        "A page shoppers expect is missing: {detail}",
+        "Shoppers and regulators expect to find these from the homepage footer.",
+        "Create the page in Shopify (Settings -> Policies) and link it in the footer.", 15),
+    "prechecked-box": (
+        "A tick-box is ticked by default",
+        "Marketing and consent boxes have to start unticked.",
+        "Untick it in the theme or app settings.", 10),
+    "auto-renew": (
+        "You sell subscriptions",
+        "Auto-renewing charges have their own rules: clear terms before purchase, an email "
+        "confirmation, and an easy online cancel.",
+        "Check your subscription app's settings against those four points.", 30),
+    "no-https": ("The site isn't secure (no padlock)",
+                 "Browsers warn visitors, and it undermines every privacy claim you make.",
+                 "Enable SSL. Urgent.", 30),
+    "no-hsts": ("Minor security header missing",
+                "Low priority. Shopify handles this on checkout.",
+                "Nothing needed unless you host pages yourself.", 0),
+    "no-h1": ("Page has no main heading",
+              "Minor. Affects screen readers and search ranking slightly.",
+              "Theme tweak.", 10),
+    "target-blank": ("Links open new tabs without a safety attribute",
+                     "Minor technical hygiene.", "Developer adds one attribute.", 5),
+    "video-pixel": ("Video and ad trackers on the same page",
+                    "Sharing who watched what with ad platforms has its own rules in the US.",
+                    "Confirm your video player isn't passing viewer IDs to ad tools.", 30),
+}
+
+
+def brief(r):
+    """Short report for a non-technical reader."""
+    if "error" in r:
+        return f"Could not check {r['url']}: {r['error']}\n"
+    f_by_sev = {s: [f for f in r["findings"] if f["sev"] == s] for s in (HIGH, MED, LOW)}
+    top = (f_by_sev[HIGH] + f_by_sev[MED])[:3]
+    rest = len(r["findings"]) - len(top)
+    prof = r.get("profile", {})
+    mk = r.get("markets", [])
+
+    L = [f"{r['url']}  —  checked {r['scanned_at'][:10]}", ""]
+    who = []
+    if prof.get("platform"):
+        who.append(prof["platform"])
+    sc = prof.get("market_evidence", {}).get("shipping_countries") or []
+    if sc:
+        who.append(f"ships to {len(sc)} countries")
+    if who:
+        L += ["  " + " · ".join(who) + ("  ·  rules checked: "
+              + ", ".join(MARKETS.get(m, m) for m in mk) if mk else ""), ""]
+
+    if not top:
+        L += ["  Nothing urgent found in the checks below.", ""]
+    else:
+        L += [f"  FIX THESE {len(top)} FIRST", ""]
+        mins = 0
+        for i, f in enumerate(top, 1):
+            head, why, fix, m = PLAIN.get(
+                f["code"], (f["msg"], "", f.get("fix", ""), 15))
+            if "{detail}" in head:
+                d = f["msg"]
+                d = (d.replace("No link to ", "").replace(" found on this page", "")
+                      if d.startswith("No link to ") else d)
+                head = head.replace("{detail}", d)
+            mins += m
+            L += [f"  {i}. {head}",
+                  "     " + why,
+                  f"     What to do: {fix}",
+                  f"     Roughly {m} minutes.", ""]
+
+    if mk:
+        rows = exposure_rows(r["findings"], mk)
+        if rows:
+            lo, hi, kinds = rows
+            L += ["  IF SOMEONE COMPLAINS",
+                  f"     Businesses your size typically pay ${lo:,}-${hi:,} to settle this kind",
+                  f"     of complaint, across {kinds} different kinds of claim.",
+                  f"     Fixing everything above: about {max(1, round(mins / 60))} hour(s) of work.",
+                  "     That gap is the whole point of this check.", ""]
+
+    if rest > 0:
+        L += [f"  {rest} smaller item(s) not shown. Ask for the full report to see them.", ""]
+    L += ["  What this check can't see: colour contrast, keyboard-only navigation,",
+          "  and whether image descriptions are actually meaningful. Those need a person.",
+          "  This is not legal advice."]
+    return "\n".join(L) + "\n"
+
+
+def exposure_rows(findings, markets):
+    """(low, high, number_of_claim_kinds) or None."""
+    fam, seen = {}, set()
+    for f in findings:
+        if f["code"] in seen:
+            continue
+        seen.add(f["code"])
+        for m in markets:
+            e = EXPOSURE.get(m, {}).get(f["code"])
+            if not e:
+                continue
+            regime, _ref, (lo, hi) = e
+            k = FAMILY.get(regime, regime)
+            prev = fam.get(k, (0, 0))
+            fam[k] = (max(prev[0], lo), max(prev[1], hi))
+    if not fam:
+        return None
+    return sum(v[0] for v in fam.values()), sum(v[1] for v in fam.values()), len(fam)
+
+
 def exposure_table(findings, markets):
     """Only regimes that apply to the markets the user confirmed.
     Grouped by claim family — a business receives demand letters, not one claim
@@ -565,6 +725,8 @@ def main():
     ap = argparse.ArgumentParser(description="Scan a live URL for commonly-flagged conditions.")
     ap.add_argument("url")
     ap.add_argument("--json", action="store_true", help="emit raw JSON")
+    ap.add_argument("--full", action="store_true",
+                    help="full technical report (default is the short plain-English one)")
     ap.add_argument("--state", metavar="PATH", help="compare against, then update, this state file")
     ap.add_argument("--file", metavar="PATH", help="scan a saved HTML file instead of fetching (offline fixture)")
     ap.add_argument("--save", metavar="PATH", help="save the fetched HTML to PATH as a fixture")
@@ -606,7 +768,12 @@ def main():
     if a.profile:
         print(json.dumps(result.get("profile", {}), indent=2))
         sys.exit(0)
-    print(json.dumps(result, indent=2) if a.json else render(result, prev))
+    if a.json:
+        print(json.dumps(result, indent=2))
+    elif a.full:
+        print(render(result, prev))
+    else:
+        print(brief(result))
 
     if a.state and "error" not in result:
         with open(a.state, "w") as f:
