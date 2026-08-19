@@ -27,6 +27,27 @@ MAXBYTES = 2_000_000
 
 HIGH, MED, LOW = "HIGH", "MED", "LOW"
 
+# Finding code -> (regime, statutory reference, typical resolution range).
+# Figures and caveats live in references/exposure.md. Never invent entries here.
+EXPOSURE = {
+    "replay-no-consent":  ("CIPA (CA wiretapping)", "$5,000 per violation*", (10000, 50000)),
+    "tracker-no-consent": ("CIPA / CCPA sharing",   "$5,000* / $2,663",      (10000, 50000)),
+    "cookie-no-consent":  ("CIPA / ePrivacy",       "$5,000* / regulator",   (10000, 50000)),
+    "chat-no-consent":    ("CIPA (interception)",   "$5,000 per violation*", (10000, 50000)),
+    "video-pixel":        ("VPPA",                  "$2,500 per violation",  (10000, 50000)),
+    "ca-no-optout-link":  ("CCPA / CPRA",           "$2,663 per violation",  (2000, 10000)),
+    "ca-no-gpc":          ("CCPA / CPRA",           "$2,663 per violation",  (2000, 10000)),
+    "ca-no-notice-at-collection": ("CCPA / CPRA",   "$2,663 per violation",  (2000, 10000)),
+    "img-alt":            ("ADA Title III / Unruh", "fees + injunction",     (5000, 25000)),
+    "input-label":        ("ADA Title III / Unruh", "fees + injunction",     (5000, 25000)),
+    "empty-control":      ("ADA Title III / Unruh", "fees + injunction",     (5000, 25000)),
+    "html-lang":          ("ADA Title III / Unruh", "fees + injunction",     (5000, 25000)),
+    "missing-doc":        ("Consumer protection",   "varies",                (0, 5000)),
+    "prechecked-box":     ("Consumer protection",   "varies",                (0, 5000)),
+    "auto-renew":         ("CA Automatic Renewal Law", "restitution",        (0, 25000)),
+    "no-https":           ("Security of processing", "regulator",            (0, 5000)),
+}
+
 
 def fetch(url, timeout=TIMEOUT):
     req = urllib.request.Request(url, headers={"User-Agent": UA})
@@ -67,15 +88,45 @@ POLICIES = [
 ]
 
 CONSENT = (r"cookie[-_ ]?(consent|banner|notice|preferences)|cookiebot|onetrust|"
-           r"klaro|osano|cookieyes|termly|iubenda|usercentrics|didomi|quantcast|complianz")
+           r"klaro|osano|cookieyes|termly|iubenda|usercentrics|didomi|quantcast|complianz|"
+           r"customerprivacy|visitorconsentcollected|trackingconsent|privacybanner")
+
+SESSION_REPLAY = [
+    ("Hotjar", r"static\.hotjar\.com|_hjSettings"),
+    ("FullStory", r"fullstory\.com|FS\.identify"),
+    ("Smartlook", r"smartlook\.com"),
+    ("Lucky Orange", r"luckyorange\.com"),
+    ("Mouseflow", r"mouseflow\.com"),
+    ("Inspectlet", r"inspectlet\.com"),
+    ("Glassbox", r"glassbox(cdn)?\.com"),
+    ("Quantum Metric", r"quantummetric\.com"),
+    ("VWO", r"visualwebsiteoptimizer\.com"),
+]
+
+CHAT_WIDGETS = [
+    ("Intercom", r"widget\.intercom\.io|intercomSettings"),
+    ("Drift", r"js\.driftt\.com|drift\.com/include"),
+    ("Tidio", r"code\.tidio\.co"),
+    ("Tawk.to", r"embed\.tawk\.to"),
+    ("Crisp", r"client\.crisp\.chat"),
+    ("Gorgias", r"config\.gorgias\.chat"),
+    ("Zendesk", r"static\.zdassets\.com"),
+    ("LiveChat", r"cdn\.livechatinc\.com"),
+]
+
+SUBSCRIPTION_APPS = [
+    ("Recharge", r"rechargepayments\.com|recharge-cdn"),
+    ("Bold Subscriptions", r"boldapps\.net"),
+    ("Appstle", r"appstle\.com"),
+    ("Skio", r"skio\.com"),
+    ("Loop", r"cdn\.loopwork\.co"),
+]
 
 TRACKERS = [
     ("Google Analytics", r"google-analytics\.com|googletagmanager\.com|gtag\s*\("),
     ("Meta Pixel", r"connect\.facebook\.net|fbevents\.js|fbq\s*\("),
     ("TikTok Pixel", r"analytics\.tiktok\.com"),
     ("LinkedIn Insight", r"snap\.licdn\.com"),
-    ("Hotjar", r"static\.hotjar\.com"),
-    ("Microsoft Clarity", r"clarity\.ms"),
     ("Reddit Pixel", r"redditstatic\.com/ads"),
     ("Pinterest Tag", r"pintrk\s*\("),
     ("X / Twitter Pixel", r"static\.ads-twitter\.com"),
@@ -91,23 +142,25 @@ def strip_noise(html):
     return html
 
 
-def scan(url):
+def scan(url, offline=None):
     started = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
     findings, skipped, checks_run = [], [], 0
 
     def flag(sev, code, msg, fix=""):
         findings.append({"sev": sev, "code": code, "msg": msg, "fix": fix})
 
-    if not robots_allows(url):
+    if offline is not None:
+        status, hdr, raw, final = 200, {}, offline, url
+    elif not robots_allows(url):
         return {"url": url, "scanned_at": started,
                 "error": "robots.txt disallows this path — not scanned."}
-
-    try:
-        status, hdr, raw, final = fetch(url)
-    except urllib.error.HTTPError as e:
-        return {"url": url, "scanned_at": started, "error": f"HTTP {e.code}"}
-    except Exception as e:
-        return {"url": url, "scanned_at": started, "error": f"{type(e).__name__}: {e}"}
+    else:
+        try:
+            status, hdr, raw, final = fetch(url)
+        except urllib.error.HTTPError as e:
+            return {"url": url, "scanned_at": started, "error": f"HTTP {e.code}"}
+        except Exception as e:
+            return {"url": url, "scanned_at": started, "error": f"{type(e).__name__}: {e}"}
 
     html = strip_noise(raw)
     low_raw, low = raw.lower(), html.lower()
@@ -139,6 +192,78 @@ def scan(url):
             skipped.append("Consent banners are usually injected by JavaScript. "
                            "A 'tracker-no-consent' flag here may be a false positive — "
                            "verify with a rendered scan before acting.")
+
+    # --- session replay: the highest-monetized target ---
+    checks_run += 1
+    replay = [n for n, p in SESSION_REPLAY if re.search(p, low_raw)]
+    if replay and not has_consent:
+        flag(HIGH, "replay-no-consent",
+             "Session-replay tools record keystrokes and clicks with no consent gate detected: "
+             + ", ".join(replay),
+             "Load these only after consent. Under California's wiretapping statute (CIPA), "
+             "session replay is the most frequently litigated web condition.")
+
+    # --- chat widgets: third-party interception theory ---
+    checks_run += 1
+    chats = [n for n, p in CHAT_WIDGETS if re.search(p, low_raw)]
+    if chats and not has_consent:
+        flag(MED, "chat-no-consent",
+             "Chat widget loads with no consent gate: " + ", ".join(chats),
+             "Disclose in the privacy policy that a third party processes chat content, "
+             "and gate loading behind consent.")
+
+    # --- video + ad pixel co-presence ---
+    checks_run += 1
+    has_video = bool(re.search(r"<video\b|youtube\.com/embed|player\.vimeo\.com|wistia", low_raw))
+    ad_pixels = [n for n, p in TRACKERS if re.search(p, low_raw)
+                 and n not in ("Google Analytics",)]
+    if has_video and ad_pixels:
+        flag(MED, "video-pixel",
+             "Video content on the same page as ad pixels (" + ", ".join(ad_pixels) + ")",
+             "Video-viewing data shared with ad platforms is the basis of VPPA claims. "
+             "Confirm no viewing identifiers are transmitted.")
+
+    # --- pre-ticked checkboxes ---
+    checks_run += 1
+    prechecked = re.findall(r'<input\b[^>]*type\s*=\s*["\']?checkbox[^>]*\bchecked\b[^>]*>', html, re.I)
+    if prechecked:
+        flag(MED, "prechecked-box",
+             f"{len(prechecked)} checkbox(es) are pre-ticked",
+             "Consent and marketing opt-ins must be unticked by default.")
+
+    # --- subscription / auto-renewal ---
+    checks_run += 1
+    subs = [n for n, p in SUBSCRIPTION_APPS if re.search(p, low_raw)]
+    if subs:
+        flag(LOW, "auto-renew",
+             "Subscription billing detected (" + ", ".join(subs) + ")",
+             "California's Automatic Renewal Law requires clear pre-purchase terms, "
+             "affirmative consent, an emailed acknowledgement, and an easy online cancel path. "
+             "Not verifiable by this scan — check manually.")
+
+    # --- California: CCPA/CPRA surface ---
+    checks_run += 1
+    if not re.search(r"do not sell( or share)?( my)?( personal)?( information| info)?|"
+                     r"your privacy choices|/cpra|/ccpa|privacy[-_ ]?choices", low_raw):
+        flag(MED, "ca-no-optout-link",
+             "No \'Do Not Sell or Share My Personal Information\' or \'Your Privacy Choices\' link found",
+             "California requires a clear opt-out link on the homepage for businesses that "
+             "sell or share personal information — ad pixels commonly count as sharing.")
+
+    checks_run += 1
+    if not re.search(r"globalprivacycontrol|\bgpc\b|navigator\.globalprivacycontrol", low_raw):
+        flag(LOW, "ca-no-gpc",
+             "No sign the site honours the Global Privacy Control browser signal",
+             "California requires honouring GPC as a valid opt-out. Most consent platforms "
+             "support it once enabled — confirm it is switched on.")
+
+    checks_run += 1
+    if not re.search(r"notice at collection|categories of personal information|"
+                     r"information we collect", low_raw):
+        flag(LOW, "ca-no-notice-at-collection",
+             "No 'notice at collection' language found on this page",
+             "California expects notice of the categories collected and the purpose, "
+             "at or before the point of collection.")
 
     checks_run += 1
     sc = hdr.get("Set-Cookie", "")
@@ -206,6 +331,62 @@ def scan(url):
     }
 
 
+def exposure_table(findings):
+    """TLDR table. Grouped by claim family — a business faces demand letters, not
+    a sum of every finding. Ranges are illustrative reference points, not predictions."""
+    FAMILY = {
+        "CIPA (CA wiretapping)": "privacy/tracking",
+        "CIPA / CCPA sharing": "privacy/tracking",
+        "CIPA / ePrivacy": "privacy/tracking",
+        "CIPA (interception)": "privacy/tracking",
+        "VPPA": "privacy/tracking",
+        "CCPA / CPRA": "CA privacy notice",
+        "ADA Title III / Unruh": "accessibility",
+        "Consumer protection": "consumer protection",
+        "CA Automatic Renewal Law": "consumer protection",
+        "Security of processing": "consumer protection",
+    }
+    seen = {}
+    for f in findings:
+        e = EXPOSURE.get(f["code"])
+        if e and f["code"] not in seen:
+            seen[f["code"]] = (f, e)
+    if not seen:
+        return []
+
+    rows = ["", "TLDR — WHAT EACH FINDING IS CITED UNDER, AND WHAT IT TYPICALLY COSTS TO RESOLVE", "",
+            f"  {'ISSUE':<46}{'CITED UNDER':<26}{'STATUTORY REF':<24}TYPICAL RESOLUTION",
+            "  " + "-" * 116]
+    order = {HIGH: 0, MED: 1, LOW: 2}
+    fam = {}
+    for code, (f, (regime, ref, (lo, hi))) in sorted(
+            seen.items(), key=lambda kv: (order[kv[1][0]["sev"]], kv[0])):
+        rows.append(f"  {f['msg'][:44]:<46}{regime:<26}{ref:<24}"
+                    + (f"${lo:,}-${hi:,}" if hi else "—"))
+        k = FAMILY.get(regime, regime)
+        prev = fam.get(k, (0, 0))
+        fam[k] = (max(prev[0], lo), max(prev[1], hi))    # worst in family, not sum
+
+    lo_t = sum(v[0] for v in fam.values())
+    hi_t = sum(v[1] for v in fam.values())
+    rows += ["  " + "-" * 116, ""]
+    rows.append(f"  Exposure groups ({len(fam)}): " + ", ".join(sorted(fam)))
+    rows.append(f"  ILLUSTRATIVE RANGE IF CHALLENGED ON ALL GROUPS: ${lo_t:,} - ${hi_t:,}")
+    rows += ["",
+             "  How to read this. A business receives demand letters, not one claim per",
+             "  finding — so groups are counted once at their worst case, not summed per",
+             "  row. Statutory figures are maxima that are almost never awarded; the ranges",
+             "  are commonly reported pre-suit settlement costs for small and mid-sized",
+             "  businesses. This is a sense of scale, NOT an estimate of what this site",
+             "  would pay, and not a prediction that anything will be claimed at all.",
+             "  * Courts disagree whether CIPA's $5,000 is per violation or per action.",
+             "",
+             "  Remediation for everything above is typically a few hours of work. That",
+             "  asymmetry is the point of this table. See references/exposure.md.",
+             ""]
+    return rows
+
+
 def render(r, prev=None):
     if "error" in r:
         return f"site-risk-check — {r['url']}\n  Could not scan: {r['error']}\n"
@@ -236,6 +417,8 @@ def render(r, prev=None):
     else:
         L.append("FINDINGS\n  None on the checks below.")
 
+    L += exposure_table(r["findings"])
+
     c = r["counts"]
     L += ["", f"{r['checks_run']} checks run  ·  {c[HIGH]} high, {c[MED]} medium, {c[LOW]} low",
           "", "NOT EVALUATED"]
@@ -250,10 +433,24 @@ def main():
     ap.add_argument("url")
     ap.add_argument("--json", action="store_true", help="emit raw JSON")
     ap.add_argument("--state", metavar="PATH", help="compare against, then update, this state file")
+    ap.add_argument("--file", metavar="PATH", help="scan a saved HTML file instead of fetching (offline fixture)")
+    ap.add_argument("--save", metavar="PATH", help="save the fetched HTML to PATH as a fixture")
     a = ap.parse_args()
 
     url = a.url if "://" in a.url else "https://" + a.url
-    result = scan(url)
+
+    if a.file:
+        result = scan(url, offline=open(a.file, encoding="utf-8", errors="ignore").read())
+    else:
+        if a.save:
+            try:
+                _, _, raw, _ = fetch(url)
+                with open(a.save, "w", encoding="utf-8") as f:
+                    f.write(raw)
+                print(f"saved fixture: {a.save} ({len(raw)} bytes)", file=sys.stderr)
+            except Exception as e:
+                print(f"could not save fixture: {e}", file=sys.stderr)
+        result = scan(url)
 
     prev = None
     if a.state:

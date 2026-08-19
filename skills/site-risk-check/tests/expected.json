@@ -1,0 +1,57 @@
+{
+ "allbirds_com": [
+  "empty-control",
+  "missing-doc",
+  "missing-doc",
+  "no-hsts"
+ ],
+ "apify_com": [
+  "ca-no-gpc",
+  "ca-no-notice-at-collection",
+  "ca-no-optout-link",
+  "chat-no-consent",
+  "missing-doc",
+  "missing-doc",
+  "no-hsts",
+  "tracker-no-consent"
+ ],
+ "avorioatelier": [
+  "ca-no-gpc",
+  "ca-no-notice-at-collection",
+  "ca-no-optout-link",
+  "img-alt",
+  "missing-doc",
+  "missing-doc",
+  "no-hsts",
+  "replay-no-consent",
+  "tracker-no-consent"
+ ],
+ "gnu_org": [
+  "ca-no-gpc",
+  "ca-no-notice-at-collection",
+  "ca-no-optout-link",
+  "missing-doc",
+  "missing-doc",
+  "missing-doc",
+  "missing-doc",
+  "missing-doc",
+  "missing-doc",
+  "no-h1",
+  "no-hsts"
+ ],
+ "hn": [
+  "ca-no-gpc",
+  "ca-no-notice-at-collection",
+  "ca-no-optout-link",
+  "img-alt",
+  "input-label",
+  "missing-doc",
+  "missing-doc",
+  "missing-doc",
+  "missing-doc",
+  "missing-doc",
+  "missing-doc",
+  "no-h1",
+  "no-hsts"
+ ]
+}

@@ -36,14 +36,19 @@ liability for whoever relies on it.
 
 1. **Never state or imply that a site is compliant, legal, safe, or passing.**
    Report what was checked, what was flagged, and what could not be evaluated.
-2. **Never invent a statute, article number, case, or penalty amount.** If asked
-   what a finding maps to, use `references/checks.md`. If it isn't there, say so.
+2. **Never invent a statute, article number, case, or penalty amount.** Figures
+   come only from `references/exposure.md`; mappings only from `references/checks.md`.
+   If it isn't in those files, say it isn't known.
 3. **Always surface `not_evaluated` alongside findings.** The omissions matter as
    much as the flags. Never present findings without them.
 4. **Treat `tracker-no-consent` as provisional on a client-rendered page.**
    Consent banners are usually injected by JavaScript and are invisible to a
    static scan. Say so rather than asserting a violation.
-5. **This is not legal advice and is not a substitute for counsel review.** State
+5. **Dollar ranges are scale, never prediction.** Present the TLDR exposure table
+   as "what this kind of finding typically costs to resolve", never as "your fine
+   is $X". Group by claim family — never sum a figure per finding. Always carry
+   the caveat that statutory maxima are almost never awarded.
+6. **This is not legal advice and is not a substitute for counsel review.** State
    that in every report you produce.
 
 ## Workflow
@@ -61,7 +66,23 @@ liability for whoever relies on it.
 
 ## Output format
 
-Present a table, then the not-evaluated list:
+Lead with the TLDR exposure table — a founder acts on money, not on severity
+labels. `scan.py` emits it; reformat as Markdown:
+
+| Issue | Cited under | Statutory ref | Typical resolution |
+|---|---|---|---|
+| Session-replay tools with no consent gate | CIPA (CA wiretapping) | $5,000 per violation* | $10,000–$50,000 |
+| Trackers with no consent mechanism | CIPA / CCPA sharing | $5,000* / $2,663 | $10,000–$50,000 |
+| **4 exposure groups** | | | **$17,000 – $90,000 illustrative** |
+
+Then always, immediately below it:
+
+> Grouped by claim family, not summed per finding. Statutory figures are maxima
+> that are almost never awarded; ranges are commonly reported pre-suit settlement
+> costs. This is a sense of scale, not an estimate for this site, and not a
+> prediction that anything will be claimed. Remediation is typically a few hours.
+
+Then the detail table, then the not-evaluated list:
 
 | Severity | Finding | Fix |
 |---|---|---|
@@ -93,6 +114,8 @@ Offer to write it to a Markdown file so it can be exported to PDF.
 - ❌ Reporting findings without the not-evaluated list.
 - ❌ Asserting a consent violation on a page the scan could not render.
 - ❌ Citing a specific article, fine, or case the references do not contain.
+- ❌ "Your fine will be $47,500." → ✅ "Findings in this group typically resolve at $10,000–$50,000 pre-suit."
+- ❌ Summing a dollar figure per finding — inflates by 3-5x and is indefensible.
 - ❌ Scanning a site the user does not own or operate without saying so.
 
 ## Limits
