@@ -64,6 +64,14 @@ missing `alt` attributes · missing `lang` · unlabeled form inputs · empty
 links and buttons · missing `<h1>` · `target="_blank"` without `noopener` ·
 HTTPS and HSTS.
 
+### Client-rendered sites
+
+Static scan is the default and needs nothing. For sites that render in the
+browser (React, Vue, base44, Framer…), it detects the shell and stops rather
+than guessing, and does a rendered scan **using a browser the agent already
+has** (Claude-in-Chrome or Playwright MCP). The skill installs no browser and
+no dependencies — if no browser is connected, it says so instead of guessing.
+
 ### What it does not check
 
 Static fetch only — client-rendered content is invisible. Automated testing

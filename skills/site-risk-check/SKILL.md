@@ -107,6 +107,52 @@ different for an Israeli store versus a Californian one.
 8. Offer remediation from `references/remediation.md`, ordered by how much each
    fix removes. One fix usually clears several findings — say which.
 
+## When the static scan can't see the page (client-rendered sites)
+
+> This skill installs nothing and bundles no browser. The rendered scan uses a
+> browser the agent already has (Claude-in-Chrome or Playwright MCP). If none is
+> connected, the skill stops — it never installs one and never falls back to the
+> misleading static shell.
+
+
+Many modern sites — anything on React, Vue, base44, Framer, and most headless
+setups — send almost no HTML and build the page in the browser. `scan.py` detects
+this: it returns `needs_render: true`, exit code 2, and **no findings**. Never
+present a report in that state — the findings would be invented and the trackers
+would be missed.
+
+When that happens, do a **rendered scan** instead. Two options, in order:
+
+### Option 1 — the user's own Chrome (preferred)
+
+Use the Claude-in-Chrome tools (`mcp__claude-in-chrome__*`; load via ToolSearch
+if deferred). This uses the user's real browser and logged-in state, so it sees
+the page as a real visitor does.
+
+1. `navigate` to the URL.
+2. Capture the rendered DOM:
+   `document.documentElement.outerHTML` via the javascript tool, save to a file.
+3. Capture what actually loaded — this is the real evidence a static scan can
+   never give: cookies set on load, and third-party beacons fired **before any
+   consent**. Read network requests and `document.cookie`.
+4. Run `python3 scripts/scan.py <url> --file rendered.html --markets ...` to get
+   the markup + policy findings from the real DOM.
+5. Combine: the script's findings, plus the cookies and trackers you observed
+   firing in the browser. A tracker that sent a request before a consent banner
+   appeared is a confirmed finding, not a provisional one.
+
+### Option 2 — Playwright fallback
+
+If Claude-in-Chrome is not connected or fails, use the Playwright tools
+(`mcp__playwright__browser_*`). Same five steps. It runs a clean browser with no
+logged-in state, which is fine for this — you want the first-visit experience.
+
+### If neither browser is available
+
+Say so and stop. Do not fall back to the static shell. Tell the user:
+*"This site renders in the browser, so I need a browser to check it, and none is
+available here. Re-run where Claude can drive Chrome or Playwright."*
+
 ## Producing evidence for a legal or compliance team
 
 When the user says the output is for legal, counsel, an auditor, or a compliance
@@ -138,7 +184,8 @@ Offer to write it to a Markdown file so it can be exported to PDF.
 
 ## Limits
 
-- Static fetch only. Client-rendered content is invisible.
+- Static fetch is the default. Client-rendered pages are detected and refused,
+  then handled by the rendered-scan steps above rather than guessed at.
 - Automated testing covers a minority of WCAG success criteria. Keyboard traps,
   focus order, meaningful alt text and cognitive criteria need a human.
 - Single page. It does not crawl.

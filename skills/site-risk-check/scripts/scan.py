@@ -289,13 +289,26 @@ def scan(url, offline=None, markets=None):
 
     html = strip_noise(raw)
     low_raw, low = raw.lower(), html.lower()
+    prof = detect_profile(raw, hdr, final)
+    if not markets:
+        markets = prof.get("detected_markets", [])
 
     # --- is this page even server-rendered? ---
     text_len = len(re.sub(r"<[^>]+>", " ", html).split())
     spa = text_len < 120
+    if spa and offline is None:
+        # A static fetch of a client-rendered page returns an empty shell.
+        # Emitting findings here is worse than useless — it invents problems and
+        # misses real ones. Stop and tell the caller a rendered scan is needed.
+        return {"url": final, "scanned_at": started, "status": status,
+                "needs_render": True, "static_words": text_len,
+                "markets": markets or [], "profile": prof,
+                "reason": ("This page is rendered in the browser (only %d words of "
+                           "content in the raw HTML). A static scan cannot see it. "
+                           "Re-run through a real browser." % text_len)}
     if spa:
         skipped.append("Page appears client-rendered (%d words in static HTML). "
-                       "Markup checks below are unreliable; a rendered scan is required." % text_len)
+                       "Markup checks below are unreliable; treat this as a floor." % text_len)
 
     # --- policy documents ---
     for name, pat, sev in POLICIES:
@@ -448,9 +461,6 @@ def scan(url, offline=None, markets=None):
     skipped.append("Contrast ratios, keyboard navigation, focus order, and whether "
                    "alt text is meaningful all require a human or a rendered scan.")
 
-    prof = detect_profile(raw, hdr, final)
-    if not markets:
-        markets = prof.get("detected_markets", [])
     return {
         "url": final, "scanned_at": started, "status": status,
         "markets_auto": not bool(_user_markets),
@@ -547,6 +557,13 @@ def brief(r):
     """Short report for a non-technical reader."""
     if "error" in r:
         return f"Could not check {r['url']}: {r['error']}\n"
+    if r.get("needs_render"):
+        return (f"{r['url']}  —  NOT SCANNED\n\n"
+                f"  {r['reason']}\n\n"
+                "  No report was produced, because a static scan of this page would\n"
+                "  be misleading — it would invent missing-page problems and miss the\n"
+                "  trackers that only load in a browser.\n\n"
+                "  Re-run with a rendered scan (see the skill's rendered-scan steps).\n")
     f_by_sev = {s: [f for f in r["findings"] if f["sev"] == s] for s in (HIGH, MED, LOW)}
     top = (f_by_sev[HIGH] + f_by_sev[MED])[:3]
     rest = len(r["findings"]) - len(top)
@@ -683,6 +700,9 @@ def exposure_table(findings, markets):
 def render(r, prev=None):
     if "error" in r:
         return f"site-risk-check — {r['url']}\n  Could not scan: {r['error']}\n"
+    if r.get("needs_render"):
+        return (f"site-risk-check — {r['url']}\n  NOT SCANNED: {r['reason']}\n"
+                "  Re-run through a real browser (rendered scan).\n")
     L = [f"SITE RISK CHECK — {r['url']}", f"Scanned {r['scanned_at']}  ·  static scan", ""]
     keys = {(f["code"], f["msg"]) for f in r["findings"]}
     old = {(f["code"], f["msg"]) for f in (prev or {}).get("findings", [])}
@@ -779,6 +799,8 @@ def main():
         with open(a.state, "w") as f:
             json.dump(result, f, indent=1)
 
+    if result.get("needs_render") or "error" in result:
+        sys.exit(2)
     sys.exit(1 if result.get("counts", {}).get(HIGH) else 0)
 
 
