@@ -27,26 +27,115 @@ MAXBYTES = 2_000_000
 
 HIGH, MED, LOW = "HIGH", "MED", "LOW"
 
-# Finding code -> (regime, statutory reference, typical resolution range).
-# Figures and caveats live in references/exposure.md. Never invent entries here.
-EXPOSURE = {
-    "replay-no-consent":  ("CIPA (CA wiretapping)", "$5,000 per violation*", (10000, 50000)),
-    "tracker-no-consent": ("CIPA / CCPA sharing",   "$5,000* / $2,663",      (10000, 50000)),
-    "cookie-no-consent":  ("CIPA / ePrivacy",       "$5,000* / regulator",   (10000, 50000)),
-    "chat-no-consent":    ("CIPA (interception)",   "$5,000 per violation*", (10000, 50000)),
-    "video-pixel":        ("VPPA",                  "$2,500 per violation",  (10000, 50000)),
-    "ca-no-optout-link":  ("CCPA / CPRA",           "$2,663 per violation",  (2000, 10000)),
-    "ca-no-gpc":          ("CCPA / CPRA",           "$2,663 per violation",  (2000, 10000)),
-    "ca-no-notice-at-collection": ("CCPA / CPRA",   "$2,663 per violation",  (2000, 10000)),
-    "img-alt":            ("ADA Title III / Unruh", "fees + injunction",     (5000, 25000)),
-    "input-label":        ("ADA Title III / Unruh", "fees + injunction",     (5000, 25000)),
-    "empty-control":      ("ADA Title III / Unruh", "fees + injunction",     (5000, 25000)),
-    "html-lang":          ("ADA Title III / Unruh", "fees + injunction",     (5000, 25000)),
-    "missing-doc":        ("Consumer protection",   "varies",                (0, 5000)),
-    "prechecked-box":     ("Consumer protection",   "varies",                (0, 5000)),
-    "auto-renew":         ("CA Automatic Renewal Law", "restitution",        (0, 25000)),
-    "no-https":           ("Security of processing", "regulator",            (0, 5000)),
+# Exposure is jurisdiction-dependent. A store that never sells to California
+# has no CCPA exposure. Markets are confirmed by the user, never assumed.
+# Figures and caveats: references/exposure.md. Never invent entries.
+MARKETS = {
+    "IL": "Israel",
+    "US-CA": "California",
+    "US": "United States (other states)",
+    "EU": "EU / EEA / UK",
 }
+
+EXPOSURE = {
+    "IL": {
+        "img-alt":       ("IS 5568 (accessibility)", "up to NIS 50,000, no proof of loss", (8000, 15000)),
+        "input-label":   ("IS 5568 (accessibility)", "up to NIS 50,000, no proof of loss", (8000, 15000)),
+        "empty-control": ("IS 5568 (accessibility)", "up to NIS 50,000, no proof of loss", (8000, 15000)),
+        "html-lang":     ("IS 5568 (accessibility)", "up to NIS 50,000, no proof of loss", (8000, 15000)),
+        "missing-doc":   ("Privacy Protection Law", "regulator order",           (0, 5000)),
+        "tracker-no-consent": ("Privacy Protection Law", "regulator order",      (0, 10000)),
+        "replay-no-consent":  ("Privacy Protection Law", "regulator order",      (0, 10000)),
+    },
+    "US-CA": {
+        "replay-no-consent":  ("CIPA (wiretapping)",  "$5,000 per violation*",  (10000, 50000)),
+        "tracker-no-consent": ("CIPA / CCPA sharing", "$5,000* / $2,663",       (10000, 50000)),
+        "cookie-no-consent":  ("CIPA / ePrivacy",     "$5,000 per violation*",  (10000, 50000)),
+        "chat-no-consent":    ("CIPA (interception)", "$5,000 per violation*",  (10000, 50000)),
+        "ca-no-optout-link":  ("CCPA / CPRA",         "$2,663 per violation",   (2000, 10000)),
+        "ca-no-gpc":          ("CCPA / CPRA",         "$2,663 per violation",   (2000, 10000)),
+        "ca-no-notice-at-collection": ("CCPA / CPRA", "$2,663 per violation",   (2000, 10000)),
+        "img-alt":       ("ADA Title III / Unruh", "fees + injunction", (5000, 25000)),
+        "input-label":   ("ADA Title III / Unruh", "fees + injunction", (5000, 25000)),
+        "empty-control": ("ADA Title III / Unruh", "fees + injunction", (5000, 25000)),
+        "html-lang":     ("ADA Title III / Unruh", "fees + injunction", (5000, 25000)),
+        "auto-renew":    ("CA Automatic Renewal Law", "restitution",    (0, 25000)),
+    },
+    "US": {
+        "img-alt":       ("ADA Title III", "fees + injunction", (5000, 25000)),
+        "input-label":   ("ADA Title III", "fees + injunction", (5000, 25000)),
+        "empty-control": ("ADA Title III", "fees + injunction", (5000, 25000)),
+        "html-lang":     ("ADA Title III", "fees + injunction", (5000, 25000)),
+        "video-pixel":   ("VPPA",          "$2,500 per violation", (10000, 50000)),
+    },
+    "EU": {
+        "tracker-no-consent": ("GDPR / ePrivacy", "regulator order; fines up to 4% turnover", (0, 20000)),
+        "replay-no-consent":  ("GDPR / ePrivacy", "regulator order; fines up to 4% turnover", (0, 20000)),
+        "cookie-no-consent":  ("GDPR / ePrivacy", "regulator order",  (0, 20000)),
+        "chat-no-consent":    ("GDPR / ePrivacy", "regulator order",  (0, 10000)),
+        "missing-doc":        ("GDPR (transparency)", "regulator order", (0, 10000)),
+        "img-alt":       ("European Accessibility Act", "member-state penalties", (5000, 20000)),
+        "input-label":   ("European Accessibility Act", "member-state penalties", (5000, 20000)),
+        "empty-control": ("European Accessibility Act", "member-state penalties", (5000, 20000)),
+    },
+}
+
+FAMILY = {
+    "IS 5568 (accessibility)": "accessibility",
+    "ADA Title III / Unruh": "accessibility",
+    "ADA Title III": "accessibility",
+    "European Accessibility Act": "accessibility",
+    "CIPA (wiretapping)": "tracking without consent",
+    "CIPA / CCPA sharing": "tracking without consent",
+    "CIPA / ePrivacy": "tracking without consent",
+    "CIPA (interception)": "tracking without consent",
+    "GDPR / ePrivacy": "tracking without consent",
+    "Privacy Protection Law": "tracking without consent",
+    "VPPA": "tracking without consent",
+    "CCPA / CPRA": "privacy notices",
+    "GDPR (transparency)": "privacy notices",
+    "CA Automatic Renewal Law": "subscription terms",
+}
+
+
+def detect_profile(raw, hdr, url):
+    """Best-effort guess at what this business is. Always confirmed by the user.
+    Takes the RAW html — trackers live in <script> tags."""
+    low = raw.lower()
+
+    def g(pat):
+        m = re.search(pat, raw, re.I)
+        return m.group(1) if m else None
+
+    platform = None
+    for name, pat in [("Shopify", r"cdn\.shopify\.com|myshopify\.com"),
+                      ("WooCommerce", r"woocommerce"), ("Magento", r"magento"),
+                      ("BigCommerce", r"bigcommerce"), ("Wix", r"wix\.com|wixstatic"),
+                      ("Squarespace", r"squarespace"), ("Webflow", r"webflow")]:
+        if re.search(pat, low):
+            platform = name
+            break
+
+    currencies = sorted(set(re.findall(r'"currency"\s*:\s*"([A-Z]{3})"', raw)
+                            + re.findall(r'"active"\s*:\s*"([A-Z]{3})"', raw)))
+    locales = sorted(set(l for l in re.findall(r'hreflang="([^"]+)"', raw) if l != "x-default"))
+    if not locales:
+        lang = g(r'<html[^>]*\blang="([^"]+)"')
+        locales = [lang] if lang else []
+
+    return {
+        "platform": platform,
+        "store_handle": g(r'Shopify\.shop\s*=\s*"([^"]+)"'),
+        "base_country": g(r'Shopify\.country\s*=\s*"([A-Z]{2})"') or g(r'"countryCode"\s*:\s*"([A-Z]{2})"'),
+        "currencies": currencies,
+        "locales": locales,
+        "rtl_content": bool(re.search(r'dir="rtl"|direction:\s*rtl', low)),
+        "sells_online": bool(re.search(r"add to cart|add to bag|/cart|checkout", low)),
+        "session_replay": [n for n, pt in SESSION_REPLAY if re.search(pt, low)],
+        "ad_pixels": [n for n, pt in TRACKERS if re.search(pt, low)],
+        "chat": [n for n, pt in CHAT_WIDGETS if re.search(pt, low)],
+        "subscriptions": [n for n, pt in SUBSCRIPTION_APPS if re.search(pt, low)],
+    }
 
 
 def fetch(url, timeout=TIMEOUT):
@@ -142,7 +231,7 @@ def strip_noise(html):
     return html
 
 
-def scan(url, offline=None):
+def scan(url, offline=None, markets=None):
     started = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
     findings, skipped, checks_run = [], [], 0
 
@@ -325,66 +414,70 @@ def scan(url, offline=None):
 
     return {
         "url": final, "scanned_at": started, "status": status,
+        "markets": markets or [], "profile": detect_profile(raw, hdr, final),
         "trackers": present, "consent_detected": has_consent,
         "checks_run": checks_run, "findings": findings, "not_evaluated": skipped,
         "counts": {s: sum(1 for f in findings if f["sev"] == s) for s in (HIGH, MED, LOW)},
     }
 
 
-def exposure_table(findings):
-    """TLDR table. Grouped by claim family — a business faces demand letters, not
-    a sum of every finding. Ranges are illustrative reference points, not predictions."""
-    FAMILY = {
-        "CIPA (CA wiretapping)": "privacy/tracking",
-        "CIPA / CCPA sharing": "privacy/tracking",
-        "CIPA / ePrivacy": "privacy/tracking",
-        "CIPA (interception)": "privacy/tracking",
-        "VPPA": "privacy/tracking",
-        "CCPA / CPRA": "CA privacy notice",
-        "ADA Title III / Unruh": "accessibility",
-        "Consumer protection": "consumer protection",
-        "CA Automatic Renewal Law": "consumer protection",
-        "Security of processing": "consumer protection",
-    }
-    seen = {}
-    for f in findings:
-        e = EXPOSURE.get(f["code"])
-        if e and f["code"] not in seen:
-            seen[f["code"]] = (f, e)
-    if not seen:
-        return []
+def exposure_table(findings, markets):
+    """Only regimes that apply to the markets the user confirmed.
+    Grouped by claim family — a business receives demand letters, not one claim
+    per finding. Ranges are illustrative reference points, not predictions."""
+    if not markets:
+        return ["", "WHERE YOU COULD BE CHALLENGED", "",
+                "  Not calculated — no markets confirmed yet. Tell the scan which",
+                "  countries you sell to with --markets IL,US-CA,EU and re-run.", ""]
 
-    rows = ["", "TLDR — WHAT EACH FINDING IS CITED UNDER, AND WHAT IT TYPICALLY COSTS TO RESOLVE", "",
-            f"  {'ISSUE':<46}{'CITED UNDER':<26}{'STATUTORY REF':<24}TYPICAL RESOLUTION",
-            "  " + "-" * 116]
+    rows_by_code = {}
+    for f in findings:
+        if f["code"] in rows_by_code:
+            continue                      # one row per code, not per occurrence
+        hits = []
+        for m in markets:
+            e = EXPOSURE.get(m, {}).get(f["code"])
+            if e:
+                hits.append((m, e))
+        if hits:
+            rows_by_code[f["code"]] = (f, hits)
+    if not rows_by_code:
+        return ["", "WHERE YOU COULD BE CHALLENGED", "",
+                "  Nothing found that maps to a regime in: " + ", ".join(markets), ""]
+
+    out = ["", "WHERE YOU COULD BE CHALLENGED", "",
+           "  Markets confirmed: " + ", ".join(MARKETS.get(m, m) for m in markets), ""]
     order = {HIGH: 0, MED: 1, LOW: 2}
     fam = {}
-    for code, (f, (regime, ref, (lo, hi))) in sorted(
-            seen.items(), key=lambda kv: (order[kv[1][0]["sev"]], kv[0])):
-        rows.append(f"  {f['msg'][:44]:<46}{regime:<26}{ref:<24}"
-                    + (f"${lo:,}-${hi:,}" if hi else "—"))
-        k = FAMILY.get(regime, regime)
-        prev = fam.get(k, (0, 0))
-        fam[k] = (max(prev[0], lo), max(prev[1], hi))    # worst in family, not sum
+    for code, (f, hits) in sorted(rows_by_code.items(),
+                                  key=lambda kv: (order[kv[1][0]["sev"]], kv[0])):
+        out.append(f"  {f['msg'][:72]}")
+        for m, (regime, ref, (lo, hi)) in hits:
+            out.append(f"      {MARKETS.get(m, m):<28}{regime:<30}{ref:<38}"
+                       + (f"${lo:,}-${hi:,}" if hi else "—"))
+            k = FAMILY.get(regime, regime)
+            prev = fam.get(k, (0, 0))
+            fam[k] = (max(prev[0], lo), max(prev[1], hi))
+        out.append("")
 
     lo_t = sum(v[0] for v in fam.values())
     hi_t = sum(v[1] for v in fam.values())
-    rows += ["  " + "-" * 116, ""]
-    rows.append(f"  Exposure groups ({len(fam)}): " + ", ".join(sorted(fam)))
-    rows.append(f"  ILLUSTRATIVE RANGE IF CHALLENGED ON ALL GROUPS: ${lo_t:,} - ${hi_t:,}")
-    rows += ["",
-             "  How to read this. A business receives demand letters, not one claim per",
-             "  finding — so groups are counted once at their worst case, not summed per",
-             "  row. Statutory figures are maxima that are almost never awarded; the ranges",
-             "  are commonly reported pre-suit settlement costs for small and mid-sized",
-             "  businesses. This is a sense of scale, NOT an estimate of what this site",
-             "  would pay, and not a prediction that anything will be claimed at all.",
-             "  * Courts disagree whether CIPA's $5,000 is per violation or per action.",
-             "",
-             "  Remediation for everything above is typically a few hours of work. That",
-             "  asymmetry is the point of this table. See references/exposure.md.",
-             ""]
-    return rows
+    out += ["  " + "-" * 108,
+            f"  {len(fam)} kinds of claim: " + ", ".join(sorted(fam)),
+            f"  IF CHALLENGED ON ALL OF THEM, TYPICAL COST TO RESOLVE: ${lo_t:,} - ${hi_t:,}",
+            "",
+            "  How to read this. Counted once per kind of claim, not once per finding —",
+            "  you receive demand letters, not one claim per line of HTML. Statutory",
+            "  figures are maxima that are almost never awarded; the ranges are what",
+            "  businesses this size commonly pay to make a demand letter go away.",
+            "  A sense of scale, not an estimate for your site, and not a prediction",
+            "  that anyone will claim anything.", ""]
+    if "US-CA" in markets:
+        out.append("  * Courts disagree whether CIPA's $5,000 is per violation or per action.")
+    out += [
+            "  Fixing all of the above is usually a few hours of work.",
+            "  See references/exposure.md.", ""]
+    return out
 
 
 def render(r, prev=None):
@@ -417,7 +510,7 @@ def render(r, prev=None):
     else:
         L.append("FINDINGS\n  None on the checks below.")
 
-    L += exposure_table(r["findings"])
+    L += exposure_table(r["findings"], r.get("markets", []))
 
     c = r["counts"]
     L += ["", f"{r['checks_run']} checks run  ·  {c[HIGH]} high, {c[MED]} medium, {c[LOW]} low",
@@ -435,12 +528,23 @@ def main():
     ap.add_argument("--state", metavar="PATH", help="compare against, then update, this state file")
     ap.add_argument("--file", metavar="PATH", help="scan a saved HTML file instead of fetching (offline fixture)")
     ap.add_argument("--save", metavar="PATH", help="save the fetched HTML to PATH as a fixture")
+    ap.add_argument("--markets", metavar="LIST",
+                    help="comma-separated markets you sell to: IL,US-CA,US,EU. "
+                         "Without this, no exposure figures are shown.")
+    ap.add_argument("--profile", action="store_true",
+                    help="detect and print the business profile only, then exit")
     a = ap.parse_args()
 
     url = a.url if "://" in a.url else "https://" + a.url
 
+    markets = [m.strip().upper() for m in a.markets.split(",")] if a.markets else []
+    bad = [m for m in markets if m not in MARKETS]
+    if bad:
+        sys.exit(f"unknown market(s): {', '.join(bad)}. Valid: {', '.join(MARKETS)}")
+
     if a.file:
-        result = scan(url, offline=open(a.file, encoding="utf-8", errors="ignore").read())
+        result = scan(url, offline=open(a.file, encoding="utf-8", errors="ignore").read(),
+                      markets=markets)
     else:
         if a.save:
             try:
@@ -450,7 +554,7 @@ def main():
                 print(f"saved fixture: {a.save} ({len(raw)} bytes)", file=sys.stderr)
             except Exception as e:
                 print(f"could not save fixture: {e}", file=sys.stderr)
-        result = scan(url)
+        result = scan(url, markets=markets)
 
     prev = None
     if a.state:
@@ -459,6 +563,9 @@ def main():
         except (OSError, ValueError):
             prev = None
 
+    if a.profile:
+        print(json.dumps(result.get("profile", {}), indent=2))
+        sys.exit(0)
     print(json.dumps(result, indent=2) if a.json else render(result, prev))
 
     if a.state and "error" not in result:

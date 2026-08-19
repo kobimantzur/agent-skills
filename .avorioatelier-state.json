@@ -1,0 +1,74 @@
+{
+ "url": "https://avorioatelier.com",
+ "scanned_at": "2026-08-19T22:38:30+00:00",
+ "status": 200,
+ "trackers": [
+  "Meta Pixel"
+ ],
+ "consent_detected": false,
+ "checks_run": 24,
+ "findings": [
+  {
+   "sev": "MED",
+   "code": "missing-doc",
+   "msg": "No link to cookie policy found on this page",
+   "fix": "Add a footer link to your cookie policy."
+  },
+  {
+   "sev": "LOW",
+   "code": "missing-doc",
+   "msg": "No link to contact / imprint found on this page",
+   "fix": "Add a footer link to your contact / imprint."
+  },
+  {
+   "sev": "HIGH",
+   "code": "tracker-no-consent",
+   "msg": "Trackers present with no consent mechanism detected: Meta Pixel",
+   "fix": "Gate these behind a consent banner, or confirm the banner is injected client-side (this scan cannot see that)."
+  },
+  {
+   "sev": "HIGH",
+   "code": "replay-no-consent",
+   "msg": "Session-replay tools record keystrokes and clicks with no consent gate detected: Hotjar, Inspectlet",
+   "fix": "Load these only after consent. Under California's wiretapping statute (CIPA), session replay is the most frequently litigated web condition."
+  },
+  {
+   "sev": "MED",
+   "code": "ca-no-optout-link",
+   "msg": "No 'Do Not Sell or Share My Personal Information' or 'Your Privacy Choices' link found",
+   "fix": "California requires a clear opt-out link on the homepage for businesses that sell or share personal information \u2014 ad pixels commonly count as sharing."
+  },
+  {
+   "sev": "LOW",
+   "code": "ca-no-gpc",
+   "msg": "No sign the site honours the Global Privacy Control browser signal",
+   "fix": "California requires honouring GPC as a valid opt-out. Most consent platforms support it once enabled \u2014 confirm it is switched on."
+  },
+  {
+   "sev": "LOW",
+   "code": "ca-no-notice-at-collection",
+   "msg": "No 'notice at collection' language found on this page",
+   "fix": "California expects notice of the categories collected and the purpose, at or before the point of collection."
+  },
+  {
+   "sev": "MED",
+   "code": "img-alt",
+   "msg": "1 of 47 <img> tags have no alt attribute",
+   "fix": "Add alt text. Decorative images take alt=\"\"."
+  },
+  {
+   "sev": "LOW",
+   "code": "no-hsts",
+   "msg": "No Strict-Transport-Security header",
+   "fix": "Add an HSTS header."
+  }
+ ],
+ "not_evaluated": [
+  "Contrast ratios, keyboard navigation, focus order, and whether alt text is meaningful all require a human or a rendered scan."
+ ],
+ "counts": {
+  "HIGH": 2,
+  "MED": 3,
+  "LOW": 4
+ }
+}

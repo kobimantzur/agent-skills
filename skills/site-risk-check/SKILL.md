@@ -1,6 +1,6 @@
 ---
 name: site-risk-check
-description: Scans a live URL for the conditions that get sites flagged: missing privacy policy or terms, trackers firing before cookie consent, images without alt text, unlabeled form inputs, no HTTPS. Re-run to report only what changed. Use before launching, before handing a site to a client, when legal or compliance asks for evidence, or on a schedule to catch drift. Triggers on "check my site", "what will get flagged", "did anything change on the site", "am I missing a privacy policy", "accessibility check". Reports which checks ran and which could not be evaluated; never claims compliance. Do NOT use for SEO, performance, or penetration testing.
+description: Checks whether a website is legally covered against the complaints and demand letters sites actually receive: trackers and session recording running without consent, missing privacy or cookie policies, accessibility gaps. Detects the business profile, confirms which countries it sells to, then shows exposure only for regimes that apply there. Re-run to report only what changed. Triggers on "check my site", "am I legally covered", "could I get sued over my website", "what will get flagged", "accessibility check", "am I missing a privacy policy", "GDPR check". Reports which checks ran and which could not be evaluated; never claims compliance. Do NOT use for SEO, performance, or penetration testing.
 license: MIT
 ---
 
@@ -53,46 +53,46 @@ liability for whoever relies on it.
 
 ## Workflow
 
-1. Confirm the URL. If the user names a site without a scheme, use `https://`.
-2. Run `scripts/scan.py`. Use `--state` if the user has scanned this site before,
-   or wants ongoing monitoring.
-3. If the run reports the page is client-rendered, say plainly that most markup
-   checks are unreliable and the result is a floor, not a picture.
-4. Present findings grouped by severity. Lead with HIGH. Never dump raw JSON.
-5. List what was not evaluated.
-6. Offer the remediation steps from `references/remediation.md` for anything flagged.
-7. If the user asks what a finding relates to legally, use `references/checks.md`
-   and stay descriptive.
+This is a two-pass flow. Never show exposure figures before the user has
+confirmed which countries they sell to — the regimes that apply are entirely
+different for an Israeli store versus a Californian one.
 
-## Output format
+### Pass 1 — scan and identify
 
-Lead with the TLDR exposure table — a founder acts on money, not on severity
-labels. `scan.py` emits it; reformat as Markdown:
+1. If no URL was given, ask for one: *"What site should I check?"*
+2. Run the scan without `--markets`:
+   ```bash
+   python3 scripts/scan.py https://SITE --state .last-scan.json
+   ```
+3. Show the detected profile back to the user in plain language and **ask them
+   to confirm or correct it**. Get it from `--profile` (JSON) or the report:
 
-| Issue | Cited under | Statutory ref | Typical resolution |
-|---|---|---|---|
-| Session-replay tools with no consent gate | CIPA (CA wiretapping) | $5,000 per violation* | $10,000–$50,000 |
-| Trackers with no consent mechanism | CIPA / CCPA sharing | $5,000* / $2,663 | $10,000–$50,000 |
-| **4 exposure groups** | | | **$17,000 – $90,000 illustrative** |
+   > Here's what I can tell about the site — correct me where I'm wrong:
+   >
+   > - **Platform:** Shopify (`avoriodesign.myshopify.com`)
+   > - **Based in:** Israel · prices in ILS
+   > - **Languages:** English, Hebrew
+   > - **Sells online:** yes
+   > - **Running:** Meta Pixel, Hotjar, Inspectlet
+   >
+   > **Which countries do you sell to and ship to?** This decides which laws
+   > apply — the exposure is completely different for Israel, California, the
+   > rest of the US, and the EU/UK. Pick all that apply: `IL`, `US-CA`, `US`, `EU`.
 
-Then always, immediately below it:
+4. Wait for the answer. Do not guess and do not proceed on the base country
+   alone — a store based in Israel that ships to the US carries US exposure.
 
-> Grouped by claim family, not summed per finding. Statutory figures are maxima
-> that are almost never awarded; ranges are commonly reported pre-suit settlement
-> costs. This is a sense of scale, not an estimate for this site, and not a
-> prediction that anything will be claimed. Remediation is typically a few hours.
+### Pass 2 — report against the confirmed markets
 
-Then the detail table, then the not-evaluated list:
-
-| Severity | Finding | Fix |
-|---|---|---|
-| HIGH | Trackers present with no consent mechanism detected: Meta Pixel | Gate behind consent, or confirm the banner is client-injected |
-
-Then:
-
-> 16 checks run · 1 high, 5 medium, 3 low
-> Not evaluated: contrast ratios, keyboard navigation, focus order, whether alt text is meaningful.
-> Not legal advice.
+5. Re-run with the confirmed markets:
+   ```bash
+   python3 scripts/scan.py https://SITE --markets IL,US-CA
+   ```
+6. Lead with the exposure section, then the findings, then what was not checked.
+7. If the page is client-rendered, say plainly that the markup checks are
+   unreliable and the result is a floor, not a picture.
+8. Offer remediation from `references/remediation.md`, ordered by how much each
+   fix removes. One fix usually clears several findings — say which.
 
 ## Producing evidence for a legal or compliance team
 
@@ -117,6 +117,10 @@ Offer to write it to a Markdown file so it can be exported to PDF.
 - ❌ "Your fine will be $47,500." → ✅ "Findings in this group typically resolve at $10,000–$50,000 pre-suit."
 - ❌ Summing a dollar figure per finding — inflates by 3-5x and is indefensible.
 - ❌ Scanning a site the user does not own or operate without saying so.
+- ❌ Showing exposure figures before the user confirms their markets.
+- ❌ Assuming markets from the detected base country — where a store is hosted
+     says nothing about where it ships.
+- ❌ Citing California law at a store that does not sell to California.
 
 ## Limits
 
