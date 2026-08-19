@@ -1,0 +1,11 @@
+{
+  "name": "kobimantzur",
+  "owner": { "name": "Kobi Mantzur", "url": "https://github.com/kobimantzur" },
+  "plugins": [
+    {
+      "name": "site-risk-check",
+      "source": "./skills/site-risk-check",
+      "description": "Scan a live URL for the conditions that get sites flagged — missing policies, trackers before consent, accessibility gaps. Re-run to see only what changed."
+    }
+  ]
+}
