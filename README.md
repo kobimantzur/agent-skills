@@ -10,7 +10,7 @@ Skills for Claude Code, Codex, Gemini CLI, Cursor, and anything else that reads
 ## Install
 
 ```bash
-git clone https://github.com/kobimantzur/skills.git && cd skills && ./install.sh
+git clone https://github.com/kobimantzur/agent-skills.git && cd skills && ./install.sh
 ```
 
 Symlinks every skill into `~/.claude/skills`, `~/.agents/skills`, and
@@ -19,7 +19,7 @@ Symlinks every skill into `~/.claude/skills`, `~/.agents/skills`, and
 Claude Code plugin install:
 
 ```bash
-claude plugin marketplace add kobimantzur/skills
+claude plugin marketplace add kobimantzur/agent-skills
 ```
 
 Or copy a single skill folder into wherever your agent reads skills from.
