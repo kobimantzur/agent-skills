@@ -26,6 +26,35 @@ Or copy a single skill folder into wherever your agent reads skills from.
 
 ## site-risk-check
 
+**Check if your website could get you sued — before a lawyer's bot finds it first.**
+
+Point it at any URL. It runs the same scan the "ADA trolls" and privacy-demand-letter
+firms run — missing privacy/cookie policies, trackers and session recording firing
+before consent, accessibility gaps (WCAG) — figures out which countries you sell to,
+and tells you in plain English what to fix, how long each fix takes, and what it
+typically costs if you don't. Free, runs locally, no signup, no API key.
+
+![site-risk-check in action](docs/site-risk-check.gif)
+
+### Who it's for
+
+- **Any website that makes money** — if you can be sued, you can be scanned
+- **Shopify / WooCommerce / ecommerce stores** — the #1 target for automated demand letters
+- **SaaS products** — trackers, cookies, and consent are your biggest exposure
+- **Startups & founders** — get ~80% covered in an afternoon, before launch or a client handoff
+- **Agencies** — run it across every client site you ship
+
+Covers ADA / WCAG accessibility, GDPR & ePrivacy (EU/UK), CCPA/CPRA (California),
+CIPA (wiretapping / session-replay claims), and Israel's IS 5568.
+
+### Run it
+
+Ask your AI coding agent, in plain words:
+
+> check if my site is legally covered — myshop.com
+
+Or run the scanner directly:
+
 ```bash
 python3 skills/site-risk-check/scripts/scan.py https://example.com
 ```
