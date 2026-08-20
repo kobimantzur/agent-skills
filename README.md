@@ -16,8 +16,14 @@ git clone https://github.com/kobimantzur/agent-skills.git && cd agent-skills && 
 ```
 
 `install.sh` symlinks each skill folder into `~/.claude/skills`, `~/.agents/skills`,
-and `~/.codex/skills` (whichever exist) — nothing else, no downloads, no root. Read it
-first if you like; it is ~20 lines. `git pull` then updates every install.
+and `~/.codex/skills` (whichever exist) — nothing else, no downloads, no root. Read it first — it is ~20 lines and does nothing but create the symlinks.
+
+Updates are **manual and reviewable**: because installs are symlinks, a later
+`git pull` will change the code your agent runs, so treat updates like any other
+dependency — read the diff before pulling, or pin to a tagged release
+(`git checkout v0.1.0`) and update deliberately. Every skill is plain,
+inspectable Python and Markdown; there are no hidden downloads and nothing runs
+at install time.
 
 Claude Code plugin install — **two steps** (the first only registers the marketplace,
 the second installs the skill):
@@ -125,6 +131,12 @@ one page and does not crawl.
 
 **Every report states which checks ran and which could not be evaluated. It
 does not determine legal compliance and is not legal advice.**
+
+**Security.** The scanner only fetches public `http(s)` URLs and refuses
+localhost, private, link-local, and cloud-metadata addresses (no SSRF). When a
+site needs a rendered scan, it runs in a clean, anonymous browser context — never
+your logged-in session — and records only cookie *names* and tracker hosts, never
+cookie values or tokens. Nothing is exfiltrated; the report stays local.
 
 ## License
 

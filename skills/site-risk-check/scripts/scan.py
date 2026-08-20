@@ -173,7 +173,41 @@ def detect_profile(raw, hdr, url):
     }
 
 
+import ipaddress
+import socket
+
+def is_public_http_url(url):
+    """Refuse anything that isn't a public http(s) URL. Blocks file://, other
+    schemes, and hosts that resolve to loopback / private / link-local / cloud
+    metadata addresses (SSRF protection)."""
+    p = urllib.parse.urlparse(url)
+    if p.scheme not in ("http", "https"):
+        return False, f"only http/https URLs are scanned (got '{p.scheme or 'no scheme'}')"
+    host = p.hostname
+    if not host:
+        return False, "no host in URL"
+    if host.lower() == "localhost":
+        return False, "refusing to scan localhost"
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except OSError as e:
+        return False, f"could not resolve host: {e}"
+    for info in infos:
+        addr = info[4][0]
+        try:
+            ip = ipaddress.ip_address(addr)
+        except ValueError:
+            continue
+        if (ip.is_private or ip.is_loopback or ip.is_link_local
+                or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+            return False, f"refusing to scan a non-public address ({addr})"
+    return True, ""
+
+
 def fetch(url, timeout=TIMEOUT):
+    ok, why = is_public_http_url(url)
+    if not ok:
+        raise ValueError(why)
     req = urllib.request.Request(url, headers={"User-Agent": UA})
     ctx = ssl.create_default_context()
     with urllib.request.urlopen(req, timeout=timeout, context=ctx) as r:
@@ -276,10 +310,13 @@ def scan(url, offline=None, markets=None):
 
     if offline is not None:
         status, hdr, raw, final = 200, {}, offline, url
-    elif not robots_allows(url):
-        return {"url": url, "scanned_at": started,
-                "error": "robots.txt disallows this path — not scanned."}
     else:
+        ok, why = is_public_http_url(url)
+        if not ok:
+            return {"url": url, "scanned_at": started, "error": why}
+        if not robots_allows(url):
+            return {"url": url, "scanned_at": started,
+                    "error": "robots.txt disallows this path — not scanned."}
         try:
             status, hdr, raw, final = fetch(url)
         except urllib.error.HTTPError as e:
