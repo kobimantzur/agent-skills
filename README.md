@@ -10,19 +10,26 @@ Skills for Claude Code, Codex, Gemini CLI, Cursor, and anything else that reads
 ## Install
 
 ```bash
-git clone https://github.com/kobimantzur/agent-skills.git && cd skills && ./install.sh
+git clone https://github.com/kobimantzur/agent-skills.git && cd agent-skills && ./install.sh
 ```
 
-Symlinks every skill into `~/.claude/skills`, `~/.agents/skills`, and
-`~/.codex/skills` — whichever exist. `git pull` updates them all.
+`install.sh` symlinks each skill folder into `~/.claude/skills`, `~/.agents/skills`,
+and `~/.codex/skills` (whichever exist) — nothing else, no downloads, no root. Read it
+first if you like; it is ~20 lines. `git pull` then updates every install.
 
-Claude Code plugin install:
+Claude Code plugin install — **two steps** (the first only registers the marketplace,
+the second installs the skill):
 
 ```bash
 claude plugin marketplace add kobimantzur/agent-skills
+claude plugin install site-risk-check@kobimantzur
 ```
 
-Or copy a single skill folder into wherever your agent reads skills from.
+If you did it from inside a Claude Code session with `/plugin`, run `/reload-plugins`
+(or restart the session) so the skill loads.
+
+Or, without plugins at all, copy `skills/site-risk-check/` into wherever your agent
+reads skills from (`~/.claude/skills/`, `~/.agents/skills/`, `~/.codex/skills/`).
 
 ## site-risk-check
 
@@ -32,7 +39,7 @@ Point it at any URL. It runs the same scan the "ADA trolls" and privacy-demand-l
 firms run — missing privacy/cookie policies, trackers and session recording firing
 before consent, accessibility gaps (WCAG) — figures out which countries you sell to,
 and tells you in plain English what to fix, how long each fix takes, and what it
-typically costs if you don't. Free, runs locally, no signup, no API key.
+typically costs if you don't. The scanner itself is a local Python script (no API key, reads a public page). Note: when you run it *through* an AI agent, that agent sees the page content and the report — the script is local, the agent is not.
 
 ![site-risk-check in action](docs/site-risk-check.gif)
 
@@ -41,7 +48,7 @@ typically costs if you don't. Free, runs locally, no signup, no API key.
 - **Any website that makes money** — if you can be sued, you can be scanned
 - **Shopify / WooCommerce / ecommerce stores** — the #1 target for automated demand letters
 - **SaaS products** — trackers, cookies, and consent are your biggest exposure
-- **Startups & founders** — get ~80% covered in an afternoon, before launch or a client handoff
+- **Startups & founders** — clear the specific defects automated scanners flag, in an afternoon, before launch or a client handoff
 - **Agencies** — run it across every client site you ship
 
 Covers ADA / WCAG accessibility, GDPR & ePrivacy (EU/UK), CCPA/CPRA (California),
