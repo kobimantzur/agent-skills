@@ -1,39 +1,35 @@
 {
- "allbirds_com": [
-  "empty-control",
+ "clean_shop": [
+  "ca-no-gpc",
+  "ca-no-notice-at-collection",
+  "ca-no-optout-link",
+  "missing-doc",
   "missing-doc",
   "missing-doc",
   "no-hsts"
  ],
- "apify_com": [
+ "leaky_shop": [
   "ca-no-gpc",
   "ca-no-notice-at-collection",
   "ca-no-optout-link",
-  "chat-no-consent",
-  "missing-doc",
-  "missing-doc",
-  "no-hsts",
-  "tracker-no-consent"
- ],
- "gnu_org": [
-  "ca-no-gpc",
-  "ca-no-notice-at-collection",
-  "ca-no-optout-link",
-  "missing-doc",
+  "html-lang",
+  "img-alt",
+  "input-label",
   "missing-doc",
   "missing-doc",
   "missing-doc",
   "missing-doc",
   "missing-doc",
   "no-h1",
-  "no-hsts"
+  "no-hsts",
+  "replay-no-consent",
+  "tracker-no-consent"
  ],
- "hn": [
+ "spa_shell": [
   "ca-no-gpc",
   "ca-no-notice-at-collection",
   "ca-no-optout-link",
-  "img-alt",
-  "input-label",
+  "html-lang",
   "missing-doc",
   "missing-doc",
   "missing-doc",
