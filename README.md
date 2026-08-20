@@ -56,6 +56,12 @@ python3 skills/site-risk-check/scripts/scan.py https://example.com --state .last
 
 Exits `1` on any HIGH finding, so it can gate CI.
 
+Get a shareable PDF (self-contained HTML with a homepage screenshot, printed to PDF):
+
+```bash
+python3 skills/site-risk-check/scripts/scan.py https://example.com --markets US-CA,EU --html report.html --screenshot shot.png
+```
+
 ### What it checks
 
 Policy links (privacy, terms, cookies, accessibility, refunds, contact) ·

@@ -741,6 +741,104 @@ def render(r, prev=None):
     return "\n".join(L) + "\n"
 
 
+def html_report(r, screenshot_b64=None):
+    """Self-contained, print-to-PDF HTML. Screenshot embedded as a data URI.
+    No external assets, no dependencies. Same figures and caveats as text."""
+    import html as _h
+    esc = _h.escape
+    url = esc(r.get("url", ""))
+    date = esc(r.get("scanned_at", "")[:10])
+    prof = r.get("profile", {}) or {}
+    mk = r.get("markets", [])
+    ev = prof.get("market_evidence", {}) or {}
+    sc = ev.get("shipping_countries") or []
+
+    if r.get("needs_render"):
+        body = '<p class="stop">' + esc(r.get("reason", "")) + '</p>'
+    else:
+        sev_order = {"HIGH": 0, "MED": 1, "LOW": 2}
+        sev_label = {"HIGH": "High", "MED": "Medium", "LOW": "Low"}
+        rows = ""
+        for f in sorted(r.get("findings", []), key=lambda f: sev_order[f["sev"]]):
+            head, why, fix, mins = PLAIN.get(f["code"], (f["msg"], "", f.get("fix", ""), 15))
+            if "{detail}" in head:
+                d = f["msg"]
+                if d.startswith("No link to "):
+                    d = d.replace("No link to ", "").replace(" found on this page", "")
+                head = head.replace("{detail}", d)
+            cls = "sev-" + f["sev"].lower()
+            rows += ('<tr class="' + cls + '"><td class="sev">' + sev_label[f["sev"]]
+                     + '</td><td><strong>' + esc(head) + '</strong><br><span class="why">'
+                     + esc(why) + '</span></td><td>' + esc(fix) + '</td><td class="mins">~'
+                     + str(mins) + 'm</td></tr>')
+        if rows:
+            findings_html = ('<h2>What to fix</h2><table class="findings"><thead><tr>'
+                             '<th>Severity</th><th>Issue</th><th>What to do</th><th>Time</th>'
+                             '</tr></thead><tbody>' + rows + '</tbody></table>')
+        else:
+            findings_html = '<h2>What to fix</h2><p>Nothing flagged in the checks below.</p>'
+        c = r.get("counts", {})
+        counts_html = ('<p class="counts">' + str(r.get("checks_run", 0)) + ' checks run &middot; '
+                       + str(c.get("HIGH", 0)) + ' high, ' + str(c.get("MED", 0)) + ' medium, '
+                       + str(c.get("LOW", 0)) + ' low</p>')
+        exp = exposure_rows(r.get("findings", []), mk) if mk else None
+        if exp:
+            lo, hi, kinds = exp
+            exposure_html = ('<div class="exposure"><h2>If someone complains</h2><p class="range">$'
+                             + format(lo, ",") + '&ndash;$' + format(hi, ",") + '</p><p>Typical cost '
+                             'for a business your size to resolve this kind of complaint, across '
+                             + str(kinds) + ' kinds of claim. Statutory maxima are almost never awarded; '
+                             'these are commonly reported pre-suit settlement ranges &mdash; a sense of '
+                             'scale, not a prediction. Fixing everything above is usually a couple of '
+                             'hours of work.</p></div>')
+        else:
+            exposure_html = ""
+        body = exposure_html + findings_html + counts_html
+
+    shot = ('<img class="shot" src="data:image/png;base64,' + screenshot_b64
+            + '" alt="Homepage screenshot">') if screenshot_b64 else ""
+    who = []
+    if prof.get("platform"):
+        who.append(esc(prof["platform"]))
+    if sc:
+        who.append("ships to " + str(len(sc)) + " countries")
+    if mk:
+        who.append("laws checked: " + esc(", ".join(MARKETS.get(m, m) for m in mk)))
+    subtitle = (" &middot; " + " &middot; ".join(who)) if who else ""
+    ne = "".join("<li>" + esc(x) + "</li>" for x in r.get("not_evaluated", []))
+
+    css = (":root{--ink:#14171a;--muted:#5b6670;--line:#e2e6ea;--hi:#b3261e;--med:#8a5a00;"
+           "--bg:#fff;--card:#f6f8fa}*{box-sizing:border-box}"
+           "body{font:15px/1.5 -apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);"
+           "background:var(--bg);margin:0 auto;padding:40px;max-width:820px}"
+           "header{border-bottom:2px solid var(--ink);padding-bottom:16px;margin-bottom:8px}"
+           "h1{font-size:22px;margin:0 0 4px}.sub{color:var(--muted);font-size:13px}"
+           ".shot{width:100%;border:1px solid var(--line);border-radius:8px;margin:18px 0;"
+           "max-height:420px;object-fit:cover;object-position:top}"
+           "h2{font-size:16px;margin:28px 0 10px}"
+           ".exposure{background:var(--card);border:1px solid var(--line);border-radius:10px;"
+           "padding:16px 20px;margin:18px 0}.range{font-size:30px;font-weight:700;margin:4px 0}"
+           "table.findings{width:100%;border-collapse:collapse;font-size:14px}"
+           ".findings th{text-align:left;border-bottom:1px solid var(--ink);padding:8px 10px;"
+           "font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}"
+           ".findings td{border-bottom:1px solid var(--line);padding:10px;vertical-align:top}"
+           ".sev{font-weight:700;white-space:nowrap}.mins{white-space:nowrap;color:var(--muted);text-align:right}"
+           ".why{color:var(--muted);font-size:13px}tr.sev-high .sev{color:var(--hi)}"
+           "tr.sev-med .sev{color:var(--med)}.counts{color:var(--muted);font-size:13px}"
+           ".stop{background:#fff4f4;border:1px solid #f0c9c6;border-radius:8px;padding:16px}"
+           "footer{margin-top:32px;padding-top:16px;border-top:1px solid var(--line);"
+           "color:var(--muted);font-size:12px}@media print{body{padding:0}}")
+
+    return ("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
+            "<title>Website risk report</title><style>" + css + "</style></head><body>"
+            "<header><h1>Website risk report</h1><div class=\"sub\">" + url + " &middot; " + date
+            + subtitle + "</div></header>" + shot + body
+            + "<h2>Not evaluated</h2><ul>" + ne + "</ul>"
+            "<footer>This report lists a defined set of conditions and states what it could not "
+            "check. It does not determine legal compliance and is not legal advice. "
+            "Generated by site-risk-check.</footer></body></html>")
+
+
 def main():
     ap = argparse.ArgumentParser(description="Scan a live URL for commonly-flagged conditions.")
     ap.add_argument("url")
@@ -755,6 +853,10 @@ def main():
                          "Without this, no exposure figures are shown.")
     ap.add_argument("--profile", action="store_true",
                     help="detect and print the business profile only, then exit")
+    ap.add_argument("--html", metavar="PATH",
+                    help="also write a self-contained HTML report (print to PDF from any browser)")
+    ap.add_argument("--screenshot", metavar="PNG",
+                    help="embed this homepage screenshot at the top of the HTML report")
     a = ap.parse_args()
 
     url = a.url if "://" in a.url else "https://" + a.url
@@ -794,6 +896,18 @@ def main():
         print(render(result, prev))
     else:
         print(brief(result))
+
+    if a.html:
+        b64 = None
+        if a.screenshot:
+            import base64
+            try:
+                b64 = base64.b64encode(open(a.screenshot, "rb").read()).decode()
+            except OSError as e:
+                print(f"(could not read screenshot: {e})", file=sys.stderr)
+        with open(a.html, "w", encoding="utf-8") as fh:
+            fh.write(html_report(result, b64))
+        print(f"HTML report written: {a.html}  (open it, then Print -> Save as PDF)", file=sys.stderr)
 
     if a.state and "error" not in result:
         with open(a.state, "w") as f:

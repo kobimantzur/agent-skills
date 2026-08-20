@@ -153,6 +153,32 @@ Say so and stop. Do not fall back to the static shell. Tell the user:
 *"This site renders in the browser, so I need a browser to check it, and none is
 available here. Re-run where Claude can drive Chrome or Playwright."*
 
+## Offering a downloadable PDF report
+
+After showing the findings, offer a shareable report:
+*"Want this as a PDF you can keep or send to your team?"*
+
+If yes, produce a self-contained HTML report (with a homepage screenshot at the
+top) and turn it into a PDF. The skill adds no dependencies — it uses the same
+browser the agent already has.
+
+1. **Capture a homepage screenshot.** Use the browser MCP already in use for a
+   rendered scan — Claude-in-Chrome first, Playwright fallback. Navigate to the
+   URL and save a full-page (or above-the-fold) PNG.
+2. **Generate the report:**
+   ```bash
+   python3 scripts/scan.py <url> --markets IL,US-CA,EU --html report.html --screenshot shot.png
+   ```
+   `--screenshot` is optional; without it the report simply has no image.
+3. **Make the PDF.** Two ways, in order:
+   - If a browser MCP is available, open `report.html` in it and print/save to PDF
+     (Playwright exposes a PDF function; Chrome can print to PDF).
+   - Otherwise, hand the user `report.html` and tell them: open it and choose
+     **Print -> Save as PDF**. It is one self-contained file, nothing else needed.
+4. Deliver the file. The report carries the same figures, the same
+   checks-not-evaluated list, and the same "not legal advice" footer as the
+   on-screen report — never a version that drops the caveats.
+
 ## Producing evidence for a legal or compliance team
 
 When the user says the output is for legal, counsel, an auditor, or a compliance
